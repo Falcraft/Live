@@ -1,0 +1,47 @@
+# Stamp to put in front of the player when he's live
+stamp: '&4● '
+permission_denied: '&4Pas le droit'
+inform:
+  link_set: '&gUrl set'
+  see_link: '&4~'
+  no_link: Ce joueur n'a pas de chaine
+  unknown_player: Joueur '~' inconnu
+  invalid_url: Url invalide
+  start:
+    active: true
+    message: ~&r est en &4live
+    message_link: ~&r est en live sur &3#
+  end:
+    active: true
+    message: ~&r n'est plus en &4live
+emojis:
+  sleep: (-.-)Zzz...
+  looking: ô¿ô
+  love: (♥_♥)
+  meh: ¯\_(ツ)_/¯
+  tableflip: (╯°□°）╯︵ ┻━┻
+  bear: ˁ˚ᴥ˚ˀ
+  doubletableflip: ┻━┻︵  \(°□°)/ ︵ ┻━┻
+  tableback: ┏━┓ ︵  /(^.^/)
+  smile: ◕‿◕
+  cat: =^오^=
+  lenny: ( ͡° ͜ʖ ͡°)
+  omgwhat: ◕_◕
+  hi: ┬┴┬┴┤･ω･)ﾉ├┬┴┬┴
+  hugme: (っ◕‿◕)っ
+  rose: ✿ܓ
+  bigcat: (=^ェ^=)
+  wink: (◕‿-)
+  speechless: (˚-˚)
+  happy: ッ
+  sing: ┐(・。・┐) ♪
+  confused: (°~°)
+  stupid: (◑﹏◐)
+  okay: (˚ㄥ_˚)
+  surprised: (º_•)
+  sad: ◕︵◕
+  cute: ❀‿❀
+  kiss: (っ˘з(O.O )♥
+  dancing: ‎(/.__.)/   \(.__.\)
+  thanks: \(^-^)/
+  shark_attack: ~~~~~~~~*\o/~~~~~/\*~~~~~~~

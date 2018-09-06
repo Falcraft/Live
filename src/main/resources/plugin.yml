@@ -1,0 +1,9 @@
+name: live
+main: fr.azarias.live.LivePlugin
+version: 1.0
+
+commands:
+    live:
+        description: When streaming, can also be used to get the link of a streaming channel
+    aa:
+        description: one-line ascii art on demand
