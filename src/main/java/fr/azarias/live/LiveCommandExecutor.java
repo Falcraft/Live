@@ -4,6 +4,8 @@ import com.earth2me.essentials.User;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import fr.azarias.live.LiveData;
+import fr.azarias.live.LivePlugin;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -33,346 +35,227 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 public class LiveCommandExecutor
-  implements CommandExecutor, Listener
-{
-  private final LivePlugin plugin;
-  private final Gson gson;
-  private Map<String, LiveData> livePlayers;
-  
-  public LiveCommandExecutor(LivePlugin p)
-  {
-    plugin = p;
-    livePlayers = new HashMap();
-    gson = new GsonBuilder().enableComplexMapKeySerialization().create();
-  }
-  
+implements CommandExecutor,
+Listener {
+    private final LivePlugin plugin;
+    private final Gson gson;
+    private Map<String, LiveData> livePlayers;
 
+    public LiveCommandExecutor(LivePlugin p) {
+        this.plugin = p;
+        this.livePlayers = new HashMap<String, LiveData>();
+        this.gson = new GsonBuilder().enableComplexMapKeySerialization().create();
+    }
 
-
-
-
-
-
-
-
-
-  public boolean onCommand(CommandSender cs, Command cmnd, String string, String[] strings)
-  {
-    if ("live".equalsIgnoreCase(cmnd.getName())) {
-      if (strings.length == 1) {
-        String arg = strings[0];
-        switch (arg.toUpperCase()) {
-        case "HELP": 
-          return help(cs);
-        case "RELOAD": 
-          if (sendMessageWithPermission(cs, "live.reload", "Reloading.."))
-            return reload();
-          break; }
-        User u;
-        if (((u = plugin.getUser(arg)) != null) && 
-          (sendMessageWithPermission(cs, "live.toggle", "Toggle live"))) {
-          return togglePlayerLive(u);
+    public boolean onCommand(CommandSender cs, Command cmnd, String string, String[] strings) {
+        if ("live".equalsIgnoreCase(cmnd.getName())) {
+            if (strings.length == 1) {
+                String arg = strings[0];
+                switch (arg.toUpperCase()) {
+                    case "HELP": {
+                        return this.help(cs);
+                    }
+                    case "RELOAD": {
+                        if (!this.sendMessageWithPermission(cs, "live.reload", "Reloading..")) break;
+                        return this.reload();
+                    }
+                }
+                User u = this.plugin.getUser(arg);
+                if (u != null && this.sendMessageWithPermission(cs, "live.toggle", "Toggle live")) {
+                    return this.togglePlayerLive(u);
+                }
+            } else {
+                return this.toggleLive(cs, strings);
+            }
         }
-      }
-      else {
-        return toggleLive(cs, strings);
-      }
+        return false;
     }
-    return false;
-  }
-  
 
-
-
-
-
-  private boolean help(CommandSender cs)
-  {
-    ArrayList<String> res = new ArrayList();
-    if (cs.hasPermission("live.reload")) {
-      res.add("&2/live reload &r: reloads the plugin configuration");
+    private boolean help(CommandSender cs) {
+        ArrayList<String> res = new ArrayList<String>();
+        if (cs.hasPermission("live.reload")) {
+            res.add("&2/live reload &r: reloads the plugin configuration");
+        }
+        if (cs.hasPermission("live.toggle")) {
+            res.add("&2/live <pseudo> &r: toggles live state for the given player");
+        }
+        if (cs.hasPermission("live.link.get")) {
+            res.add("&2/live link <pseudo> &r: get url to player's channel");
+        }
+        if (cs instanceof Player) {
+            if (cs.hasPermission("live.link.set")) {
+                res.add("&2/live link <url> &r: sets the url for your channel");
+            }
+            if (cs.hasPermission("live.use")) {
+                res.add("&2/live &r: toggles the live");
+            }
+        }
+        cs.sendMessage(this.plugin.colored(String.join((CharSequence)"\n", res)));
+        return true;
     }
-    if (cs.hasPermission("live.toggle")) {
-      res.add("&2/live <pseudo> &r: toggles live state for the given player");
+
+    private boolean reload() {
+        this.plugin.reload();
+        return true;
     }
-    
-    if (cs.hasPermission("live.link.get")) {
-      res.add("&2/live link <pseudo> &r: get url to player's channel");
+
+    public void load() throws IOException {
+        Path path = this.getLiveFile();
+        if (Files.exists(path, new LinkOption[0])) {
+            this.livePlayers = this.getLivePlayers(path);
+        } else {
+            this.plugin.getLogger().log(Level.INFO, "Live file not found");
+        }
     }
-    if ((cs instanceof Player)) {
-      if (cs.hasPermission("live.link.set")) {
-        res.add("&2/live link <url> &r: sets the url for your channel");
-      }
-      if (cs.hasPermission("live.use")) {
-        res.add("&2/live &r: toggles the live");
-      }
+
+    public void save() {
+        try {
+            String json = this.gson.toJson(this.livePlayers);
+            Path f = this.getLiveFile();
+            if (!Files.exists(f, new LinkOption[0])) {
+                Files.createFile(f, new FileAttribute[0]);
+            }
+            Files.write(f, json.getBytes(), new OpenOption[0]);
+        }
+        catch (IOException ex) {
+            this.plugin.getLogger().log(Level.SEVERE, null, ex);
+        }
     }
-    cs.sendMessage(plugin.colored(String.join("\n", res)));
-    return true;
-  }
-  
-  private boolean reload() {
-    plugin.reload();
-    return true;
-  }
-  
 
-
-
-  public void load()
-    throws IOException
-  {
-    Path path = getLiveFile();
-    if (Files.exists(path, new LinkOption[0])) {
-      livePlayers = getLivePlayers(path);
-    } else {
-      plugin.getLogger().log(Level.INFO, "Live file not found");
+    private boolean sendMessageWithPermission(CommandSender cs, String permName, String message) {
+        boolean hasPerm = cs.hasPermission(permName);
+        if (!hasPerm) {
+            cs.sendMessage(this.plugin.colorConfig("permission_denied", "Permission denied"));
+        } else {
+            cs.sendMessage(message);
+        }
+        return hasPerm;
     }
-  }
-  
 
-
-  public void save()
-  {
-    try
-    {
-      String json = gson.toJson(livePlayers);
-      Path f = getLiveFile();
-      if (!Files.exists(f, new LinkOption[0])) {
-        Files.createFile(f, new FileAttribute[0]);
-      }
-      Files.write(f, json.getBytes(), new OpenOption[0]);
-    } catch (IOException ex) {
-      plugin.getLogger().log(Level.SEVERE, null, ex);
+    private Map<String, LiveData> getLivePlayers(Path f) {
+        try {
+            String fileContent = new String(Files.readAllBytes(f));
+            Type typeOfMap = new TypeToken<Map<String, LiveData>>(){}.getType();
+            return (Map)this.gson.fromJson(fileContent, typeOfMap);
+        }
+        catch (IOException ex) {
+            this.plugin.getLogger().log(Level.SEVERE, null, ex);
+            return new HashMap<String, LiveData>();
+        }
     }
-  }
-  
-  private boolean sendMessageWithPermission(CommandSender cs, String permName, String message) {
-    boolean hasPerm = cs.hasPermission(permName);
-    if (!hasPerm) {
-      cs.sendMessage(plugin.colorConfig("permission_denied", "Permission denied"));
-    } else {
-      cs.sendMessage(message);
+
+    private Path getLiveFile() throws IOException {
+        Path path = this.plugin.getDataFolder().toPath();
+        if (!Files.exists(path, new LinkOption[0])) {
+            Files.createDirectory(path, new FileAttribute[0]);
+        }
+        return path.resolve("live.json");
     }
-    return hasPerm;
-  }
-  
 
-
-
-
-
-  private Map<String, LiveData> getLivePlayers(Path f)
-  {
-    try
-    {
-      String fileContent = new String(Files.readAllBytes(f));
-      
-      Type typeOfMap = new TypeToken() {}.getType();
-      return (Map)gson.fromJson(fileContent, typeOfMap);
-    } catch (IOException ex) {
-      plugin.getLogger().log(Level.SEVERE, null, ex);
+    private boolean toggleLive(CommandSender cs, String[] args) {
+        boolean ret = false;
+        if (args.length > 0) {
+            ret = args[0].equalsIgnoreCase("link") && args.length > 1 ? this.link(cs, args[1]) : false;
+        } else if (cs.hasPermission("live.use") && cs instanceof Player) {
+            ret = this.togglePlayerLive(this.plugin.getUser((Player)cs));
+        }
+        return ret;
     }
-    return new HashMap();
-  }
-  
 
-
-
-
-
-
-  private Path getLiveFile()
-    throws IOException
-  {
-    Path path = plugin.getDataFolder().toPath();
-    if (!Files.exists(path, new LinkOption[0])) {
-      Files.createDirectory(path, new FileAttribute[0]);
+    private boolean link(CommandSender cs, String link) {
+        boolean ret = false;
+        User u = this.plugin.getUser(link);
+        if (u != null) {
+            LiveData ld = this.getLiveData(u);
+            boolean bl = ret = ld != null && ld.getLiveLink() != null;
+            if (!ret) {
+                cs.sendMessage(this.plugin.colorConfig("inform.no_link", "Link not found"));
+            } else if (cs.hasPermission("live.link.get")) {
+                String s = this.plugin.colorConfig("inform.see_link", "~").replaceAll("~", ld.getLiveLink());
+                this.sendMessageWithPermission(cs, "live.link.get", s);
+            }
+        } else if (cs.hasPermission("live.link.set") && cs instanceof Player) {
+            ret = this.setLiveLink((Player)cs, link);
+        } else {
+            cs.sendMessage((Object)ChatColor.RED + "Operation not possible");
+        }
+        return ret;
     }
-    return path.resolve("live.json");
-  }
-  
 
-
-
-
-
-
-  private boolean toggleLive(CommandSender cs, String[] args)
-  {
-    boolean ret = false;
-    if (args.length > 0) {
-      if ((args[0].equalsIgnoreCase("link")) && (args.length > 1)) {
-        ret = link(cs, args[1]);
-      } else {
-        ret = false;
-      }
-    } else if ((cs.hasPermission("live.use")) && ((cs instanceof Player))) {
-      ret = togglePlayerLive(plugin.getUser((Player)cs));
+    private boolean setLiveLink(Player p, String url) {
+        try {
+            new URL(url);
+            this.getLiveData(this.plugin.getUser(p)).setLiveLink(url);
+            String dfltMessage = (Object)ChatColor.GREEN + "Link set";
+            p.sendMessage(this.plugin.colorConfig("inform.link_set", dfltMessage));
+            return true;
+        }
+        catch (MalformedURLException ex) {
+            String dfltMessage = (Object)ChatColor.RED + "Invalid URL";
+            p.sendMessage(this.plugin.colorConfig("inform.invalid_ur", dfltMessage));
+            return false;
+        }
     }
-    return ret;
-  }
-  
-  private boolean link(CommandSender cs, String link) {
-    boolean ret = false;
-    User u = plugin.getUser(link);
-    if (u != null) {
-      LiveData ld = getLiveData(u);
-      ret = (ld != null) && (ld.getLiveLink() != null);
-      if (!ret) {
-        cs.sendMessage(plugin.colorConfig("inform.no_link", "Link not found"));
-      } else if (cs.hasPermission("live.link.get")) {
-        String s = plugin.colorConfig("inform.see_link", "~").replaceAll("~", ld.getLiveLink());
-        sendMessageWithPermission(cs, "live.link.get", s);
-      }
-    } else if ((cs.hasPermission("live.link.set")) && ((cs instanceof Player))) {
-      ret = setLiveLink((Player)cs, link);
-    } else {
-      cs.sendMessage(ChatColor.RED + "Operation not possible");
+
+    private boolean togglePlayerLive(User u) {
+        boolean isLive = this.isLive((AnimalTamer)u.getBase());
+        LiveData ld = this.getLiveData(u);
+        if (!isLive) {
+            ld.setOriginalNick(u.getNickname());
+        }
+        ld.setIsLive(!isLive);
+        u.setNickname(isLive ? ld.getOriginalNick() : this.stamped(u));
+        u.setDisplayNick();
+        this.informLiveToggle(ld, isLive ? "inform.end" : "inform.start");
+        return true;
     }
-    return ret;
-  }
-  
-  private boolean setLiveLink(Player p, String url) {
-    try {
-      new URL(url);
-      getLiveData(plugin.getUser(p)).setLiveLink(url);
-      String dfltMessage = ChatColor.GREEN + "Link set";
-      p.sendMessage(plugin.colorConfig("inform.link_set", dfltMessage));
-      return true;
-    } catch (MalformedURLException ex) {
-      String dfltMessage = ChatColor.RED + "Invalid URL";
-      p.sendMessage(plugin.colorConfig("inform.invalid_ur", dfltMessage)); }
-    return false;
-  }
-  
 
-
-
-
-
-  private boolean togglePlayerLive(User u)
-  {
-    boolean isLive = isLive(u.getBase());
-    LiveData ld = getLiveData(u);
-    if (!isLive) {
-      ld.setOriginalNick(u.getNickname());
+    private void informLiveToggle(LiveData cs, String informPath) {
+        if (this.plugin.getConfig().getBoolean(informPath + ".active")) {
+            String msgPath = cs.getLiveLink() != null ? ".message_link" : ".message";
+            String msg = this.plugin.colorConfig(informPath + msgPath, "");
+            if (msg.isEmpty()) {
+                msg = this.plugin.colorConfig(informPath + ".message", "");
+            }
+            msg = msg.replaceAll("~", cs.getOriginalNick()).replaceAll("#", cs.getLiveLink());
+            this.plugin.getServer().broadcastMessage(this.plugin.colored(msg));
+        }
     }
-    ld.setIsLive(!isLive);
-    u.setNickname(isLive ? ld.getOriginalNick() : stamped(u));
-    u.setDisplayNick();
-    informLiveToggle(ld, isLive ? "inform.end" : "inform.start");
-    return true;
-  }
-  
 
-
-
-
-
-  private void informLiveToggle(LiveData cs, String informPath)
-  {
-    if (plugin.getConfig().getBoolean(informPath + ".active")) {
-      String msgPath = cs.getLiveLink() != null ? ".message_link" : ".message";
-      String msg = plugin.colorConfig(informPath + msgPath, "");
-      if (msg.isEmpty()) {
-        msg = plugin.colorConfig(informPath + ".message", "");
-      }
-      
-      msg = msg.replaceAll("~", cs.getOriginalNick()).replaceAll("#", cs.getLiveLink());
-      plugin.getServer().broadcastMessage(plugin.colored(msg));
+    @EventHandler
+    public void onNickChange(NickChangeEvent ev) {
+        User us = this.plugin.getUser(ev.getAffected().getBase());
+        if (this.isLive((AnimalTamer)us.getBase())) {
+            ev.setCancelled(true);
+            this.getLiveData(us).setOriginalNick(ev.getValue());
+            User affected = this.plugin.getUser(ev.getAffected().getBase().getUniqueId());
+            affected.setNickname(this.stamped(ev.getValue()));
+            affected.setDisplayNick();
+        }
     }
-  }
-  
 
-
-
-
-
-  @EventHandler
-  public void onNickChange(NickChangeEvent ev)
-  {
-    User us = plugin.getUser(ev.getAffected().getBase());
-    if (isLive(us.getBase())) {
-      ev.setCancelled(true);
-      getLiveData(us).setOriginalNick(ev.getValue());
-      User affected = plugin.getUser(ev.getAffected().getBase().getUniqueId());
-      affected.setNickname(stamped(ev.getValue()));
-      affected.setDisplayNick();
+    private String stamped(User u) {
+        return this.stamped(u.getNickname());
     }
-  }
-  
 
-
-
-
-
-  private String stamped(User u)
-  {
-    return stamped(u.getNickname());
-  }
-  
-
-
-
-
-
-  private String stamped(String s)
-  {
-    return String.format("%s%s%s", new Object[] { plugin.colorConfig("stamp"), ChatColor.RESET, s });
-  }
-  
-
-
-
-
-
-
-  private LiveData getLiveData(User uid)
-  {
-    String str = uid.getBase().getUniqueId().toString();
-    if (!livePlayers.containsKey(str)) {
-      livePlayers.put(str, new LiveData(uid.getNickname()));
+    private String stamped(String s) {
+        return String.format("%s%s%s", new Object[]{this.plugin.colorConfig("stamp"), ChatColor.RESET, s});
     }
-    LiveData d = (LiveData)livePlayers.get(str);
-    return d;
-  }
-  
 
+    private LiveData getLiveData(User uid) {
+        String str = uid.getBase().getUniqueId().toString();
+        if (!this.livePlayers.containsKey(str)) {
+            this.livePlayers.put(str, new LiveData(uid.getNickname()));
+        }
+        LiveData d = this.livePlayers.get(str);
+        return d;
+    }
 
+    private boolean isLive(AnimalTamer p) {
+        String UUID2 = p.getUniqueId().toString();
+        return this.livePlayers.containsKey(UUID2) && this.livePlayers.get(UUID2).isLive();
+    }
 
-
-
-  private boolean isLive(AnimalTamer p)
-  {
-    String UUID = p.getUniqueId().toString();
-    return (livePlayers.containsKey(UUID)) && (((LiveData)livePlayers.get(UUID)).isLive());
-  }
 }
+
