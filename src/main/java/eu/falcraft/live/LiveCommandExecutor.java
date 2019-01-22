@@ -1,12 +1,5 @@
-package fr.azarias.live;
+package eu.falcraft.live;
 
-import com.earth2me.essentials.User;
-import com.google.common.reflect.TypeToken;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import fr.azarias.live.LiveData;
-import fr.azarias.live.LivePlugin;
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
@@ -19,21 +12,23 @@ import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.logging.Level;
-import java.util.logging.Logger;
-import net.ess3.api.IUser;
-import net.ess3.api.events.NickChangeEvent;
-import net.md_5.bungee.api.ChatColor;
-import org.bukkit.Server;
+
+import com.earth2me.essentials.User;
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.AnimalTamer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+
+import net.ess3.api.events.NickChangeEvent;
+import net.md_5.bungee.api.ChatColor;
 
 public class LiveCommandExecutor
 implements CommandExecutor,

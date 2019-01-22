@@ -1,5 +1,5 @@
 
-package fr.azarias.live;
+package eu.falcraft.live;
 
 public class LiveData {
     private boolean isLive;

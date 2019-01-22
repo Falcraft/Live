@@ -1,26 +1,21 @@
-package fr.azarias.live;
+package eu.falcraft.live;
 
-import com.earth2me.essentials.User;
-import fr.azarias.live.AsciiArtCommandExecutor;
-import fr.azarias.live.LiveCommandExecutor;
 import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
-import java.util.logging.Logger;
-import net.ess3.api.IEssentials;
-import net.md_5.bungee.api.ChatColor;
-import org.bukkit.Server;
+
+import com.earth2me.essentials.User;
+
 import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import net.ess3.api.IEssentials;
+import net.md_5.bungee.api.ChatColor;
 
 public final class LivePlugin extends JavaPlugin {
     private LiveCommandExecutor liveCommandExecutor;

@@ -1,6 +1,6 @@
 name: live
-main: fr.azarias.live.LivePlugin
-version: 1.1
+main: eu.falcraft.live.LivePlugin
+version: 1.2
 api-version: 1.13
 
 commands:
