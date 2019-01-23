@@ -30,7 +30,6 @@ TabCompleter {
     }
 
     public void load() {
-        String path = "emojis";
         this.emojis.clear();
         this.plugin.configList("emojis").forEach(k -> this.emojis.put((String)k, this.plugin.config("emojis." + k, "><")));
     }

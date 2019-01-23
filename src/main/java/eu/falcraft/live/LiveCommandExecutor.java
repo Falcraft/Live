@@ -131,8 +131,10 @@ Listener {
     private Map<String, LiveData> getLivePlayers(Path f) {
         try {
             String fileContent = new String(Files.readAllBytes(f));
-            Type typeOfMap = new TypeToken<Map<String, LiveData>>(){}.getType();
-            return (Map)this.gson.fromJson(fileContent, typeOfMap);
+            Type typeOfMap = new TypeToken<Map<String, LiveData>>(){
+				private static final long serialVersionUID = 1L;}.getType();
+            Type typeOfMap2 = typeOfMap;
+            return (Map) this.gson.fromJson(fileContent, typeOfMap2);
         }
         catch (IOException ex) {
             this.plugin.getLogger().log(Level.SEVERE, null, ex);
