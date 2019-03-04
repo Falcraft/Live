@@ -24,41 +24,32 @@
 
 package eu.falcraft.live;
 
-public class LiveData {
-    private boolean isLive;
-    private String liveLink;
-    private String originalNick;
+import java.util.UUID;
 
-    public LiveData(String nick) {
-        this.originalNick = nick;
+import org.bukkit.entity.Player;
+
+public class DefaultLiveUser implements ILiveUser {
+
+    private final Player mPlayer;
+
+    public DefaultLiveUser(Player p) {
+        mPlayer = p;
     }
 
-    public LiveData(String nick, String link) {
-        this.originalNick = nick;
-        this.liveLink = link;
+    @Override
+    public String getNickName() {
+        return mPlayer.getDisplayName();
     }
 
-    public boolean isLive() {
-        return this.isLive;
+    @Override
+    public UUID getUUID() {
+        return mPlayer.getUniqueId();
     }
 
-    public void setIsLive(boolean isLive) {
-        this.isLive = isLive;
+    @Override
+    public void setNickName(String nickName) {
+        mPlayer.setDisplayName(nickName);
+        mPlayer.setPlayerListName(nickName);
     }
 
-    public String getLiveLink() {
-        return this.liveLink;
-    }
-
-    public void setLiveLink(String liveLink) {
-        this.liveLink = liveLink;
-    }
-
-    public String getOriginalNick() {
-        return this.originalNick;
-    }
-
-    public void setOriginalNick(String originalNick) {
-        this.originalNick = originalNick;
-    }
 }

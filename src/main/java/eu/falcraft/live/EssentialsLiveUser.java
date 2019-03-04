@@ -24,41 +24,32 @@
 
 package eu.falcraft.live;
 
-public class LiveData {
-    private boolean isLive;
-    private String liveLink;
-    private String originalNick;
+import java.util.UUID;
 
-    public LiveData(String nick) {
-        this.originalNick = nick;
+import com.earth2me.essentials.User;
+
+public class EssentialsLiveUser implements ILiveUser {
+
+    private User mUser;
+
+    public EssentialsLiveUser(User essUser) {
+        mUser = essUser;
     }
 
-    public LiveData(String nick, String link) {
-        this.originalNick = nick;
-        this.liveLink = link;
+    @Override
+    public String getNickName() {
+        return mUser.getNickname();
     }
 
-    public boolean isLive() {
-        return this.isLive;
+    @Override
+    public UUID getUUID() {
+        return mUser.getConfigUUID();
     }
 
-    public void setIsLive(boolean isLive) {
-        this.isLive = isLive;
+    @Override
+    public void setNickName(String nickName) {
+        mUser.setNickname(nickName);
+        mUser.setDisplayNick();
     }
 
-    public String getLiveLink() {
-        return this.liveLink;
-    }
-
-    public void setLiveLink(String liveLink) {
-        this.liveLink = liveLink;
-    }
-
-    public String getOriginalNick() {
-        return this.originalNick;
-    }
-
-    public void setOriginalNick(String originalNick) {
-        this.originalNick = originalNick;
-    }
 }

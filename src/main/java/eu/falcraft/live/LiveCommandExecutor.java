@@ -1,3 +1,27 @@
+/*
+* MIT License
+* 
+* Copyright (c) 2017-2019 Azarias Boutin
+* 
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+* 
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+* 
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*/
+
 package eu.falcraft.live;
 
 import java.io.IOException;
@@ -12,9 +36,10 @@ import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.UUID;
 import java.util.logging.Level;
 
-import com.earth2me.essentials.User;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -22,7 +47,6 @@ import com.google.gson.GsonBuilder;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.AnimalTamer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -30,15 +54,15 @@ import org.bukkit.event.Listener;
 import net.ess3.api.events.NickChangeEvent;
 import net.md_5.bungee.api.ChatColor;
 
-public class LiveCommandExecutor
-implements CommandExecutor,
-Listener {
+public class LiveCommandExecutor implements CommandExecutor, Listener {
     private final LivePlugin plugin;
     private final Gson gson;
     private Map<String, LiveData> livePlayers;
+    private IUserFactory mUserFactory;
 
-    public LiveCommandExecutor(LivePlugin p) {
+    public LiveCommandExecutor(LivePlugin p, IUserFactory uFactory) {
         this.plugin = p;
+        this.mUserFactory = uFactory;
         this.livePlayers = new HashMap<String, LiveData>();
         this.gson = new GsonBuilder().enableComplexMapKeySerialization().create();
     }
@@ -48,15 +72,16 @@ Listener {
             if (strings.length == 1) {
                 String arg = strings[0];
                 switch (arg.toUpperCase()) {
-                    case "HELP": {
-                        return this.help(cs);
-                    }
-                    case "RELOAD": {
-                        if (!this.sendMessageWithPermission(cs, "live.reload", "Reloading..")) break;
-                        return this.reload();
-                    }
+                case "HELP": {
+                    return this.help(cs);
                 }
-                User u = this.plugin.getUser(arg);
+                case "RELOAD": {
+                    if (!this.sendMessageWithPermission(cs, "live.reload", "Reloading.."))
+                        break;
+                    return this.reload();
+                }
+                }
+                ILiveUser u = this.mUserFactory.getUser(arg);
                 if (u != null && this.sendMessageWithPermission(cs, "live.toggle", "Toggle live")) {
                     return this.togglePlayerLive(u);
                 }
@@ -86,7 +111,7 @@ Listener {
                 res.add("&2/live &r: toggles the live");
             }
         }
-        cs.sendMessage(this.plugin.colored(String.join((CharSequence)"\n", res)));
+        cs.sendMessage(this.plugin.colored(String.join((CharSequence) "\n", res)));
         return true;
     }
 
@@ -104,7 +129,7 @@ Listener {
         }
     }
 
-    public void save() {
+    public void unload() {
         try {
             String json = this.gson.toJson(this.livePlayers);
             Path f = this.getLiveFile();
@@ -112,10 +137,11 @@ Listener {
                 Files.createFile(f, new FileAttribute[0]);
             }
             Files.write(f, json.getBytes(), new OpenOption[0]);
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
             this.plugin.getLogger().log(Level.SEVERE, null, ex);
         }
+        livePlayers = null;
+        mUserFactory = null;
     }
 
     private boolean sendMessageWithPermission(CommandSender cs, String permName, String message) {
@@ -131,14 +157,32 @@ Listener {
     private Map<String, LiveData> getLivePlayers(Path f) {
         try {
             String fileContent = new String(Files.readAllBytes(f));
-            Type typeOfMap = new TypeToken<Map<String, LiveData>>(){
-				private static final long serialVersionUID = 1L;}.getType();
-            Type typeOfMap2 = typeOfMap;
-            return (Map) this.gson.fromJson(fileContent, typeOfMap2);
-        }
-        catch (IOException ex) {
+            Type typeOfMap = new TypeToken<Map<String, LiveData>>() {
+                private static final long serialVersionUID = 1L;
+            }.getType();
+            Object res = this.gson.fromJson(fileContent, typeOfMap);
+            if (res == null)
+                return new HashMap<>();
+            if (!(res instanceof Map))
+                return new HashMap<>();
+            Map<String, LiveData> data = (Map<String, LiveData>) res;
+            checkMapIntegrity(data);
+            return data;
+        } catch (IOException ex) {
             this.plugin.getLogger().log(Level.SEVERE, null, ex);
             return new HashMap<String, LiveData>();
+        }
+    }
+
+    private void checkMapIntegrity(Map<String, LiveData> fileContent) {
+        for (Entry<String, LiveData> entry : fileContent.entrySet()) {
+            LiveData data = entry.getValue();
+            if (data.getOriginalNick() == null) {
+                ILiveUser user = mUserFactory.getUser(UUID.fromString(entry.getKey()));
+                if (user != null) {
+                    data.setOriginalNick(user.getNickName());
+                }
+            }
         }
     }
 
@@ -155,14 +199,14 @@ Listener {
         if (args.length > 0) {
             ret = args[0].equalsIgnoreCase("link") && args.length > 1 ? this.link(cs, args[1]) : false;
         } else if (cs.hasPermission("live.use") && cs instanceof Player) {
-            ret = this.togglePlayerLive(this.plugin.getUser((Player)cs));
+            ret = this.togglePlayerLive(this.mUserFactory.getUser((Player) cs));
         }
         return ret;
     }
 
     private boolean link(CommandSender cs, String link) {
         boolean ret = false;
-        User u = this.plugin.getUser(link);
+        ILiveUser u = this.mUserFactory.getUser(link);
         if (u != null) {
             LiveData ld = this.getLiveData(u);
             boolean bl = ret = ld != null && ld.getLiveLink() != null;
@@ -173,9 +217,9 @@ Listener {
                 this.sendMessageWithPermission(cs, "live.link.get", s);
             }
         } else if (cs.hasPermission("live.link.set") && cs instanceof Player) {
-            ret = this.setLiveLink((Player)cs, link);
+            ret = this.setLiveLink((Player) cs, link);
         } else {
-            cs.sendMessage((Object)ChatColor.RED + "Operation not possible");
+            cs.sendMessage((Object) ChatColor.RED + "Operation not possible");
         }
         return ret;
     }
@@ -183,27 +227,25 @@ Listener {
     private boolean setLiveLink(Player p, String url) {
         try {
             new URL(url);
-            this.getLiveData(this.plugin.getUser(p)).setLiveLink(url);
-            String dfltMessage = (Object)ChatColor.GREEN + "Link set";
+            this.getLiveData(this.mUserFactory.getUser(p)).setLiveLink(url);
+            String dfltMessage = (Object) ChatColor.GREEN + "Link set";
             p.sendMessage(this.plugin.colorConfig("inform.link_set", dfltMessage));
             return true;
-        }
-        catch (MalformedURLException ex) {
-            String dfltMessage = (Object)ChatColor.RED + "Invalid URL";
+        } catch (MalformedURLException ex) {
+            String dfltMessage = (Object) ChatColor.RED + "Invalid URL";
             p.sendMessage(this.plugin.colorConfig("inform.invalid_ur", dfltMessage));
             return false;
         }
     }
 
-    private boolean togglePlayerLive(User u) {
-        boolean isLive = this.isLive((AnimalTamer)u.getBase());
+    private boolean togglePlayerLive(ILiveUser u) {
+        boolean isLive = this.isLive(u);
         LiveData ld = this.getLiveData(u);
         if (!isLive) {
-            ld.setOriginalNick(u.getNickname());
+            ld.setOriginalNick(u.getNickName());
         }
         ld.setIsLive(!isLive);
-        u.setNickname(isLive ? ld.getOriginalNick() : this.stamped(u));
-        u.setDisplayNick();
+        u.setNickName(isLive ? ld.getOriginalNick() : this.stamped(u));
         this.informLiveToggle(ld, isLive ? "inform.end" : "inform.start");
         return true;
     }
@@ -222,37 +264,35 @@ Listener {
 
     @EventHandler
     public void onNickChange(NickChangeEvent ev) {
-        User us = this.plugin.getUser(ev.getAffected().getBase());
-        if (this.isLive((AnimalTamer)us.getBase())) {
+        ILiveUser us = this.mUserFactory.getUser(ev.getAffected().getBase());
+        if (this.isLive(us)) {
             ev.setCancelled(true);
             this.getLiveData(us).setOriginalNick(ev.getValue());
-            User affected = this.plugin.getUser(ev.getAffected().getBase().getUniqueId());
-            affected.setNickname(this.stamped(ev.getValue()));
-            affected.setDisplayNick();
+            ILiveUser affected = us;
+            affected.setNickName(this.stamped(ev.getValue()));
         }
     }
 
-    private String stamped(User u) {
-        return this.stamped(u.getNickname());
+    private String stamped(ILiveUser u) {
+        return this.stamped(u.getNickName());
     }
 
     private String stamped(String s) {
-        return String.format("%s%s%s", new Object[]{this.plugin.colorConfig("stamp"), ChatColor.RESET, s});
+        return String.format("%s%s%s", new Object[] { this.plugin.colorConfig("stamp"), ChatColor.RESET, s });
     }
 
-    private LiveData getLiveData(User uid) {
-        String str = uid.getBase().getUniqueId().toString();
+    private LiveData getLiveData(ILiveUser liveUser) {
+        String str = liveUser.getUUID().toString();
         if (!this.livePlayers.containsKey(str)) {
-            this.livePlayers.put(str, new LiveData(uid.getNickname()));
+            this.livePlayers.put(str, new LiveData(liveUser.getNickName()));
         }
         LiveData d = this.livePlayers.get(str);
         return d;
     }
 
-    private boolean isLive(AnimalTamer p) {
-        String UUID2 = p.getUniqueId().toString();
+    private boolean isLive(ILiveUser p) {
+        String UUID2 = p.getUUID().toString();
         return this.livePlayers.containsKey(UUID2) && this.livePlayers.get(UUID2).isLive();
     }
 
 }
-

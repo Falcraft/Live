@@ -1,3 +1,27 @@
+/*
+* MIT License
+* 
+* Copyright (c) 2017-2019 Azarias Boutin
+* 
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+* 
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+* 
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*/
+
 package eu.falcraft.live;
 
 import java.util.HashMap;
@@ -18,20 +42,21 @@ import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 
-public class AsciiArtCommandExecutor
-implements CommandExecutor,
-TabCompleter {
+public class AsciiArtCommandExecutor implements CommandExecutor, TabCompleter {
     private final LivePlugin plugin;
     private final Map<String, String> emojis;
+    private final IUserFactory mUserFactory;
 
-    public AsciiArtCommandExecutor(LivePlugin p) {
+    public AsciiArtCommandExecutor(LivePlugin p, IUserFactory factory) {
         this.plugin = p;
+        this.mUserFactory = factory;
         this.emojis = new HashMap<String, String>();
     }
 
     public void load() {
         this.emojis.clear();
-        this.plugin.configList("emojis").forEach(k -> this.emojis.put((String)k, this.plugin.config("emojis." + k, "><")));
+        this.plugin.configList("emojis")
+                .forEach(k -> this.emojis.put((String) k, this.plugin.config("emojis." + k, "><")));
     }
 
     private TextComponent listEmojis() {
@@ -40,11 +65,12 @@ TabCompleter {
             temp.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder(k).create()));
             temp.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/aa " + k));
             return temp;
-        }).reduce((a, b) -> new TextComponent(new BaseComponent[]{a, new TextComponent("\n"), b})).orElse(new TextComponent());
+        }).reduce((a, b) -> new TextComponent(new BaseComponent[] { a, new TextComponent("\n"), b }))
+                .orElse(new TextComponent());
     }
 
     private TextComponent stylizeEmoji(String key, String senderName) {
-        TextComponent tc = new TextComponent(senderName + (Object)ChatColor.WHITE + ": " + this.emojis.get(key));
+        TextComponent tc = new TextComponent(senderName + (Object) ChatColor.WHITE + ": " + this.emojis.get(key));
         tc.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder(key).create()));
         return tc;
     }
@@ -55,7 +81,7 @@ TabCompleter {
             return false;
         }
         if ("list".equalsIgnoreCase(strings[0])) {
-            cs.spigot().sendMessage((BaseComponent)this.listEmojis());
+            cs.spigot().sendMessage((BaseComponent) this.listEmojis());
             return true;
         }
         String selected = strings[0];
@@ -63,8 +89,8 @@ TabCompleter {
             cs.sendMessage("Emoji '" + strings[0] + "' not found");
             return false;
         }
-        String name = cs instanceof Player ? this.plugin.getUser((Player)cs).getNickname() : cs.getName();
-        this.plugin.getServer().spigot().broadcast((BaseComponent)this.stylizeEmoji(strings[0], name));
+        String name = cs instanceof Player ? this.mUserFactory.getUser((Player) cs).getNickName() : cs.getName();
+        this.plugin.getServer().spigot().broadcast((BaseComponent) this.stylizeEmoji(strings[0], name));
         return true;
     }
 
@@ -73,4 +99,3 @@ TabCompleter {
         return this.emojis.keySet().stream().filter(s -> s.startsWith(arg)).collect(Collectors.toList());
     }
 }
-
