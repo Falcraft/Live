@@ -1,19 +1,19 @@
 # Stamp to put in front of the player when he's live
 stamp: '&4● '
-permission_denied: '&4Pas le droit'
+permission_denied: '&4Permission denied'
 inform:
-  link_set: '&gUrl set'
+  link_set: '&lUrl set'
   see_link: '&4~'
-  no_link: Ce joueur n'a pas de chaine
-  unknown_player: Joueur '~' inconnu
-  invalid_url: Url invalide
+  no_link: This player did not set his stream link
+  unknown_player: Unknown player '~'
+  invalid_url: Invalid URL
   start:
     active: true
-    message: ~&r est en &4live
-    message_link: ~&r est en live sur &3#
+    message: ~&r is &4streaming
+    message_link: ~&r is streaming on &3#
   end:
     active: true
-    message: ~&r n'est plus en &4live
+    message: ~&r stopped &4streaming
 emojis:
   sleep: (-.-)Zzz...
   looking: ô¿ô

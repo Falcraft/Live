@@ -48,7 +48,8 @@ public final class LivePlugin extends JavaPlugin {
             IEssentials ess = (IEssentials) this.getServer().getPluginManager().getPlugin("Essentials");
             IUserFactory userFactory = ess == null ? new DefaultUserFactory() : new EssentialsUserFactory(ess);
 
-            this.liveCommandExecutor = new LiveCommandExecutor(this, userFactory);
+            this.liveCommandExecutor = ess == null ? new LiveCommandExecutor(this, userFactory)
+                    : new EssCommandExecutor(this, userFactory);
             this.getCommand("live").setExecutor((CommandExecutor) this.liveCommandExecutor);
             this.liveCommandExecutor.load();
             this.getServer().getPluginManager().registerEvents((Listener) this.liveCommandExecutor, (Plugin) this);

@@ -48,17 +48,15 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
-import net.ess3.api.events.NickChangeEvent;
 import net.md_5.bungee.api.ChatColor;
 
 public class LiveCommandExecutor implements CommandExecutor, Listener {
     private final LivePlugin plugin;
     private final Gson gson;
     private Map<String, LiveData> livePlayers;
-    private IUserFactory mUserFactory;
+    protected IUserFactory mUserFactory;
 
     public LiveCommandExecutor(LivePlugin p, IUserFactory uFactory) {
         this.plugin = p;
@@ -195,13 +193,12 @@ public class LiveCommandExecutor implements CommandExecutor, Listener {
     }
 
     private boolean toggleLive(CommandSender cs, String[] args) {
-        boolean ret = false;
         if (args.length > 0) {
-            ret = args[0].equalsIgnoreCase("link") && args.length > 1 ? this.link(cs, args[1]) : false;
+            return "link".equalsIgnoreCase(args[0]) && args.length > 1 ? this.link(cs, args[1]) : false;
         } else if (cs.hasPermission("live.use") && cs instanceof Player) {
-            ret = this.togglePlayerLive(this.mUserFactory.getUser((Player) cs));
+            return this.togglePlayerLive(this.mUserFactory.getUser((Player) cs));
         }
-        return ret;
+        return false;
     }
 
     private boolean link(CommandSender cs, String link) {
@@ -209,7 +206,7 @@ public class LiveCommandExecutor implements CommandExecutor, Listener {
         ILiveUser u = this.mUserFactory.getUser(link);
         if (u != null) {
             LiveData ld = this.getLiveData(u);
-            boolean bl = ret = ld != null && ld.getLiveLink() != null;
+            ret = ld != null && ld.getLiveLink() != null;
             if (!ret) {
                 cs.sendMessage(this.plugin.colorConfig("inform.no_link", "Link not found"));
             } else if (cs.hasPermission("live.link.get")) {
@@ -228,12 +225,12 @@ public class LiveCommandExecutor implements CommandExecutor, Listener {
         try {
             new URL(url);
             this.getLiveData(this.mUserFactory.getUser(p)).setLiveLink(url);
-            String dfltMessage = (Object) ChatColor.GREEN + "Link set";
+            String dfltMessage = ChatColor.GREEN + "Link set";
             p.sendMessage(this.plugin.colorConfig("inform.link_set", dfltMessage));
             return true;
         } catch (MalformedURLException ex) {
-            String dfltMessage = (Object) ChatColor.RED + "Invalid URL";
-            p.sendMessage(this.plugin.colorConfig("inform.invalid_ur", dfltMessage));
+            String dfltMessage = ChatColor.RED + "Invalid URL";
+            p.sendMessage(this.plugin.colorConfig("inform.invalid_url", dfltMessage));
             return false;
         }
     }
@@ -257,40 +254,36 @@ public class LiveCommandExecutor implements CommandExecutor, Listener {
             if (msg.isEmpty()) {
                 msg = this.plugin.colorConfig(informPath + ".message", "");
             }
-            msg = msg.replaceAll("~", cs.getOriginalNick()).replaceAll("#", cs.getLiveLink());
+
+            if (cs.getOriginalNick() != null) {
+                msg = msg.replaceAll("~", cs.getOriginalNick());
+            }
+
+            if (cs.getLiveLink() != null) {
+                msg = msg.replaceAll("#", cs.getLiveLink());
+            }
+
             this.plugin.getServer().broadcastMessage(this.plugin.colored(msg));
         }
     }
 
-    @EventHandler
-    public void onNickChange(NickChangeEvent ev) {
-        ILiveUser us = this.mUserFactory.getUser(ev.getAffected().getBase());
-        if (this.isLive(us)) {
-            ev.setCancelled(true);
-            this.getLiveData(us).setOriginalNick(ev.getValue());
-            ILiveUser affected = us;
-            affected.setNickName(this.stamped(ev.getValue()));
-        }
-    }
-
-    private String stamped(ILiveUser u) {
+    protected String stamped(ILiveUser u) {
         return this.stamped(u.getNickName());
     }
 
-    private String stamped(String s) {
+    protected String stamped(String s) {
         return String.format("%s%s%s", new Object[] { this.plugin.colorConfig("stamp"), ChatColor.RESET, s });
     }
 
-    private LiveData getLiveData(ILiveUser liveUser) {
+    protected LiveData getLiveData(ILiveUser liveUser) {
         String str = liveUser.getUUID().toString();
         if (!this.livePlayers.containsKey(str)) {
             this.livePlayers.put(str, new LiveData(liveUser.getNickName()));
         }
-        LiveData d = this.livePlayers.get(str);
-        return d;
+        return this.livePlayers.get(str);
     }
 
-    private boolean isLive(ILiveUser p) {
+    protected boolean isLive(ILiveUser p) {
         String UUID2 = p.getUUID().toString();
         return this.livePlayers.containsKey(UUID2) && this.livePlayers.get(UUID2).isLive();
     }
